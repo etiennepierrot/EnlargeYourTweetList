@@ -9,7 +9,7 @@ namespace EnlargeYourTweetList.Model.MongoDB
         [BsonId]
         public ObjectId ObjectId;
 
-        public String Id
+        public String StrId
         {
             get { return ObjectId.ToString(); }
             set { ObjectId = new ObjectId(value); }

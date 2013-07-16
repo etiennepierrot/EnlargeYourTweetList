@@ -39,7 +39,7 @@ namespace EnlargeYourTweetList.Model.MongoDB
 
         public T Find(string id)
         {
-            return QueryAll().FirstOrDefault(x => x.Id == id);
+            return QueryAll().FirstOrDefault(x => x.StrId == id);
         }
 
         public void Delete(string id)

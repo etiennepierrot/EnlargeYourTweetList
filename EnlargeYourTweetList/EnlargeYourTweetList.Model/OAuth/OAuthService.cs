@@ -16,9 +16,9 @@ namespace EnlargeYourTweetList.Model.OAuth
             _mongoRepository = mongoRepository;
         }
 
-        public string Authenticate()
+        public string Authenticate(string callBackUrl)
         {
-            var userToken = _twitterAPI.GetRequestToken();
+            var userToken = _twitterAPI.GetRequestToken(callBackUrl);
             var user = new User
                 {
                     UserOAuthToken = userToken
@@ -27,10 +27,10 @@ namespace EnlargeYourTweetList.Model.OAuth
             return _twitterAPI.Authenticate(user.UserOAuthToken.OAuthToken);
         }
 
-        public void GetUserOAuthToken(string oauthToken, string oauthVerifier)
+        public OAuthTokenResponse GetUserOAuthToken(string oauthToken, string oauthVerifier)
         {
             var user = _mongoRepository.QueryAll().SingleOrDefault(x => x.UserOAuthToken.OAuthToken == oauthToken);
-            var test = _twitterAPI.GetAccessToken(user.UserOAuthToken.OAuthToken, oauthVerifier);
+            return _twitterAPI.GetAccessToken(user.UserOAuthToken.OAuthToken, oauthVerifier);
 
         }
     }

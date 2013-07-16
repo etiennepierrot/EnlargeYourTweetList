@@ -1,13 +1,12 @@
 ﻿
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Net;
-using System.Net.Http;
-using System.Net.Http.Headers;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using EnlargeYourTweetList.Model.OAuth;
+using EnlargeYourTweetList.Model.TwitterLists;
 using RestSharp;
 using RestSharp.Authenticators;
 using RestSharp.Contrib;
@@ -20,25 +19,20 @@ namespace EnlargeYourTweetList.Model.API
         private const string ConsumerKey = "lByCB7h9JZCv7BpFOhzIPg";
         private const string ConsumerSecret = "3e0Hp11d4iI1yka2VSrqcUvdz7yKJWEqBtH7JDBFBs";
 
-
         private const string BaseUrl = "https://api.twitter.com";
 
-        private RestClient GetRestClient()
-        {
-            return new RestClient(BaseUrl)
-                {
-                    Authenticator = OAuth1Authenticator.ForRequestToken(
-                        ConsumerKey,
-                        ConsumerSecret, "http://www.enlargeyourtweetliste.com:98/Login/CallbackUrl"
-                        )
-                };
-        }
-
-        public UserOAuthToken GetRequestToken()
+        public UserOAuthToken GetRequestToken(string callbackUrl)
         {
 
             var request = new RestRequest("/oauth/request_token", Method.POST);
-            var response = GetRestClient().Execute(request);
+            var restClient = new RestClient(BaseUrl)
+                {
+                    Authenticator = OAuth1Authenticator.ForRequestToken(
+                        ConsumerKey,
+                        ConsumerSecret, callbackUrl
+                        )
+                };
+            var response = restClient.Execute(request);
             var qs = HttpUtility.ParseQueryString(response.Content);
 
             return new UserOAuthToken
@@ -51,28 +45,16 @@ namespace EnlargeYourTweetList.Model.API
         public string Authenticate(string token)
         {
             var request = new RestRequest("/oauth/authorize?oauth_token=" + token, Method.GET);
-            var response = GetRestClient().Execute(request);
+            var response = new RestClient(BaseUrl).Execute(request);
             return response.Content;
         }
 
-        /// <summary>
-        /// Gets the access token.
-        /// </summary>
-        /// <param name="consumerKey">The consumer key.</param>
-        /// <param name="consumerSecret">The consumer secret.</param>
-        /// <param name="requestToken">The request token.</param>
-        /// <param name="verifier">The pin number or verifier string.</param>
-        /// <returns>
-        /// An <see cref="OAuthTokenResponse"/> class containing access token information.
-        /// </returns>
         public OAuthTokenResponse GetAccessToken(string requestToken,string verifier)
         {
 
 
-            WebRequestBuilder builder = new WebRequestBuilder(
-                new Uri("https://api.twitter.com/oauth/access_token"),
-                HttpVerb.GET,
-                new OAuthTokens { ConsumerKey = ConsumerKey, ConsumerSecret = ConsumerSecret });
+            var builder = new WebRequestBuilder(
+                new Uri("https://api.twitter.com/oauth/access_token"), HttpVerb.GET,new OAuthTokens { ConsumerKey = ConsumerKey, ConsumerSecret = ConsumerSecret });
 
             if (!string.IsNullOrEmpty(verifier))
             {
@@ -94,35 +76,30 @@ namespace EnlargeYourTweetList.Model.API
                 throw new Exception(wex.Message, wex);
             }
 
-            OAuthTokenResponse response = new OAuthTokenResponse();
-            response.Token = Regex.Match(responseBody, @"oauth_token=([^&]+)").Groups[1].Value;
-            response.TokenSecret = Regex.Match(responseBody, @"oauth_token_secret=([^&]+)").Groups[1].Value;
-            response.UserId = long.Parse(Regex.Match(responseBody, @"user_id=([^&]+)").Groups[1].Value,
-                                         CultureInfo.CurrentCulture);
-            response.ScreenName = Regex.Match(responseBody, @"screen_name=([^&]+)").Groups[1].Value;
+            var response = new OAuthTokenResponse
+                {
+                    Token = Regex.Match(responseBody, @"oauth_token=([^&]+)").Groups[1].Value,
+                    TokenSecret = Regex.Match(responseBody, @"oauth_token_secret=([^&]+)").Groups[1].Value,
+                    UserId = long.Parse(Regex.Match(responseBody, @"user_id=([^&]+)").Groups[1].Value,CultureInfo.CurrentCulture),
+                    ScreenName = Regex.Match(responseBody, @"screen_name=([^&]+)").Groups[1].Value
+                };
             return response;
         }
 
-        public void GetAccessToken(string token_Secret, string oauth_token, string oauth_verifier)
+        public List<TwitterList> GetProtectedRessource(OAuthTokenResponse oAuthTokenResponse, string ressource)
         {
-
-
-
             var client = new RestClient(BaseUrl)
                 {
-                    Authenticator =
-                        OAuth1Authenticator.ForAccessToken(ConsumerKey, ConsumerSecret, oauth_token, oauth_verifier),
-                    Proxy = new WebProxy("http://127.0.0.1:8888")
+                    Authenticator = OAuth1Authenticator.ForProtectedResource(ConsumerKey, ConsumerSecret, oAuthTokenResponse.Token,
+                                                                 oAuthTokenResponse.TokenSecret)
                 };
-            var request = new RestRequest("oauth/access_token", Method.POST);
 
-            request.AddBody(string.Format("oauth_verifier={0}", oauth_verifier));
-            request.AddHeader("Content-Type", @"application/x-www-form-urlencoded");
-            request.AddHeader("Accept", "*/*");
-            var response = client.Execute(request);
-
-
+            var request = new RestRequest(ressource, Method.GET);
+            var response = client.Execute<List<TwitterList>>(request);
+            return response.Data;
         }
+
+
     }
 
 

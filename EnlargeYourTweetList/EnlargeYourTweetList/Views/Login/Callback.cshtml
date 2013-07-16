@@ -1,0 +1,13 @@
+﻿@model System.Collections.Generic.IEnumerable<EnlargeYourTweetList.Models.ListDto>
+
+@{
+    ViewBag.Title = "title";
+}
+
+<h2>title</h2>
+<ul>
+    @foreach (var list in Model)
+    {
+        <li>@list.Name</li>
+    }
+</ul>
